@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Green Journey · Gen ảnh</title>
+<style>
+:root{--bg:#f4f6f7;--card:#fff;--ink:#0a0c11;--sub:#5a6060;--line:#dce0e3;--pri:#177a80}
+@media(prefers-color-scheme:dark){:root{--bg:#16181b;--card:#23262a;--ink:#f2f4f5;--sub:#a9b0b2;--line:#3a3e43;--pri:#2dccd3}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif;padding:20px}
+h1{font-size:18px;margin:0 0 12px}.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+input,textarea,select{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}
+button{font:inherit;border:0;border-radius:8px;padding:8px 14px;background:var(--pri);color:#fff;cursor:pointer}
+button:disabled{opacity:.5}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.card b{display:block}.card small{color:var(--sub)}textarea{width:100%;min-height:96px;resize:vertical}
+.row{display:flex;gap:8px}.row select{flex:1}img{width:100%;border-radius:8px;border:1px solid var(--line)}
+.err{color:#e5484d}.note{color:var(--sub);font-size:12px}
+</style></head><body>
+<h1>Green Journey · Gen ảnh (gpt-image)</h1>
+<div class="bar">
+  <input id="key" type="password" placeholder="sk-... (dán key ở đây)" size="34" autocomplete="off">
+  <input id="style" size="50" value="Soft watercolor travel illustration, airy pastel palette, clean white background, no text">
+  <button id="all">Gen tất cả</button>
+</div>
+<p class="note">Key chỉ nằm trong trang này và gửi thẳng tới OpenAI, không lưu lại. Ưng ảnh nào thì bấm "Tải ảnh về".</p>
+<div class="grid" id="grid"></div>
+<script>
+const SLOTS=[
+ {id:"country-card",name:"Country card",dim:"600×600",size:"1024x1024",p:"Landmark scene for the country USA, square composition"},
+ {id:"section-photo",name:"Section photo",dim:"~350×240",size:"1536x1024",p:"Scenic travel photo-style illustration of a famous place"},
+ {id:"next-country",name:"Next country",dim:"card",size:"1024x1024",p:"Landmark scene for the next country to explore"},
+ {id:"poi-thumb",name:"POI",dim:"432×264",size:"1536x1024",p:"Point of interest, landmark seen from a pleasant angle"},
+ {id:"country-hero",name:"Country hero",dim:"390×348",size:"1536x1024",p:"Wide hero scene of a country, sky at the top with space for text"},
+ {id:"poi-hero",name:"POI hero",dim:"390×330",size:"1536x1024",p:"Hero image of a single point of interest"},
+ {id:"banner-bg",name:"Banner background",dim:"16:9",size:"1536x1024",p:"Soft abstract map-like background with green accents"},
+ {id:"passport",name:"Passport",dim:"3:4",size:"1024x1536",p:"Passport booklet cover, teal color, globe emblem, no text",bg:"transparent"},
+ {id:"illustration",name:"Illustration",dim:"square",size:"1024x1024",p:"Friendly travel illustration, hills and a winding path"},
+];
+const g=document.getElementById("grid");
+g.innerHTML=SLOTS.map(s=>`<div class="card" id="c-${s.id}"><div><b>${s.name}</b><small>${s.dim}</small></div>
+<textarea>${s.p}</textarea>
+<div class="row"><select class="q"><option>medium</option><option>low</option><option>high</option></select><button>Gen</button></div>
+<div class="out"></div></div>`).join("");
+async function gen(s){
+  const c=document.getElementById("c-"+s.id),btn=c.querySelector("button"),out=c.querySelector(".out");
+  const key=document.getElementById("key").value.trim();
+  if(!key){out.innerHTML='<span class="err">Dán API key vào ô phía trên trước</span>';return}
+  btn.disabled=true;out.textContent="Đang gen… (khoảng 20-60 giây)";
+  try{
+    const prompt=c.querySelector("textarea").value+". Style: "+document.getElementById("style").value;
+    const r=await fetch("https://api.openai.com/v1/images/generations",{method:"POST",
+      headers:{"Content-Type":"application/json",Authorization:"Bearer "+key},
+      body:JSON.stringify({model:"gpt-image-1",prompt,size:s.size,quality:c.querySelector(".q").value,background:s.bg||"auto",output_format:"png",n:1})});
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error?.message||"Lỗi OpenAI");
+    const url="data:image/png;base64,"+j.data[0].b64_json;
+    out.innerHTML=`<img src="${url}"><a download="${s.id}.png" href="${url}"><button type="button">Tải ảnh về</button></a>`;
+  }catch(e){out.innerHTML=`<span class="err">${e.message}</span>`}
+  btn.disabled=false;
+}
+SLOTS.forEach(s=>document.querySelector("#c-"+s.id+" button").onclick=()=>gen(s));
+document.getElementById("all").onclick=async()=>{for(const s of SLOTS)await gen(s)};
+</script></body></html>
